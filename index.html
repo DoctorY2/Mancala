@@ -3,88 +3,113 @@
 <head>
 <meta charset="UTF-8">
 <title>Gebeta · Mancala</title>
+
 <style>
 body {
   margin: 0;
-  font-family: serif;
-  background: linear-gradient(#3b2414, #1b0f08);
-  color: #f5e6c8;
+  font-family: "Georgia", serif;
+  background: radial-gradient(circle, #4a2c16, #1a0e06);
+  color: #f3e3c3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+#game {
+  background: linear-gradient(#5a381c, #2b160a);
+  padding: 30px 40px;
+  border-radius: 30px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.6);
   text-align: center;
 }
 
-h1 { margin-top: 20px; }
+h1 {
+  margin-top: 0;
+}
+
+#status {
+  margin: 15px 0;
+  font-size: 18px;
+  min-height: 24px;
+}
 
 #board {
   display: grid;
-  grid-template-columns: 80px repeat(6, 80px) 80px;
-  grid-template-rows: repeat(2, 80px);
-  gap: 10px;
+  grid-template-columns: 90px repeat(6, 90px) 90px;
+  grid-template-rows: repeat(2, 90px);
+  gap: 12px;
   justify-content: center;
-  margin-top: 40px;
 }
 
 .pit, .store {
+  background: #a26a3a;
   border-radius: 50%;
-  background: #9c6b3b;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  cursor: pointer;
+  font-size: 22px;
+  transition: transform 0.2s, background 0.2s;
 }
 
 .store {
   grid-row: span 2;
-  border-radius: 20px;
-  cursor: default;
-  background: #6f4a2a;
+  border-radius: 25px;
+  background: #7a4a24;
+  font-size: 26px;
+}
+
+.pit:hover {
+  transform: scale(1.08);
+  background: #c48a55;
 }
 
 .disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-#status {
-  margin-top: 20px;
-  font-size: 18px;
+  opacity: 0.35;
+  pointer-events: none;
 }
 </style>
 </head>
 
 <body>
 
-<h1>Gebeta · Mancala</h1>
-<div id="status"></div>
-
-<div id="board"></div>
+<div id="game">
+  <h1>Gebeta · Mancala</h1>
+  <div id="status"></div>
+  <div id="board"></div>
+</div>
 
 <script>
 let board = [
-  4,4,4,4,4,4,  // Jugador 1
-  0,            // Almacén J1
-  4,4,4,4,4,4,  // Jugador 2
-  0             // Almacén J2
+  4,4,4,4,4,4,
+  0,
+  4,4,4,4,4,4,
+  0
 ];
 
 let currentPlayer = 1;
+let gameOver = false;
+
 const boardDiv = document.getElementById("board");
 const statusDiv = document.getElementById("status");
 
 function render() {
   boardDiv.innerHTML = "";
 
-  // Fila superior (Jugador 2)
+  // Fila superior (IA)
   boardDiv.appendChild(createStore(13));
   for (let i = 12; i >= 7; i--) boardDiv.appendChild(createPit(i));
   boardDiv.appendChild(document.createElement("div"));
 
-  // Fila inferior (Jugador 1)
+  // Fila inferior (Jugador)
   boardDiv.appendChild(document.createElement("div"));
   for (let i = 0; i <= 5; i++) boardDiv.appendChild(createPit(i));
   boardDiv.appendChild(createStore(6));
 
-  statusDiv.textContent = "Turno: Jugador " + currentPlayer;
+  if (!gameOver) {
+    statusDiv.textContent =
+      currentPlayer === 1 ? "Tu turno" : "Turno de la IA...";
+  }
 }
 
 function createPit(i) {
@@ -92,16 +117,17 @@ function createPit(i) {
   d.className = "pit";
   d.textContent = board[i];
 
-  const isPlayer1 = i >= 0 && i <= 5;
-  const isPlayer2 = i >= 7 && i <= 12;
+  const isPlayer = i >= 0 && i <= 5;
+  const isIA = i >= 7 && i <= 12;
 
   if (
     board[i] === 0 ||
-    (currentPlayer === 1 && !isPlayer1) ||
-    (currentPlayer === 2 && !isPlayer2)
+    (currentPlayer === 1 && !isPlayer) ||
+    (currentPlayer === 2 && !isIA) ||
+    gameOver
   ) {
     d.classList.add("disabled");
-  } else {
+  } else if (currentPlayer === 1) {
     d.onclick = () => move(i);
   }
 
@@ -148,12 +174,26 @@ function move(start) {
     }
   }
 
-  // Turno extra
   let storeIndex = currentPlayer === 1 ? 6 : 13;
   if (i !== storeIndex) currentPlayer = currentPlayer === 1 ? 2 : 1;
 
   checkEnd();
   render();
+
+  if (currentPlayer === 2 && !gameOver) {
+    setTimeout(aiMove, 700);
+  }
+}
+
+function aiMove() {
+  let options = [];
+  for (let i = 7; i <= 12; i++) {
+    if (board[i] > 0) options.push(i);
+  }
+  if (options.length === 0) return;
+
+  let choice = options[Math.floor(Math.random() * options.length)];
+  move(choice);
 }
 
 function checkEnd() {
@@ -170,12 +210,15 @@ function checkEnd() {
       board[i] = 0;
     }
 
-    let winner =
-      board[6] > board[13] ? "Jugador 1 gana" :
-      board[13] > board[6] ? "Jugador 2 gana" :
-      "Empate";
+    gameOver = true;
 
-    statusDiv.textContent = winner;
+    if (board[6] > board[13]) {
+      statusDiv.textContent = "🏆 ¡Has ganado!";
+    } else if (board[13] > board[6]) {
+      statusDiv.textContent = "🤖 Gana la IA";
+    } else {
+      statusDiv.textContent = "🤝 Empate";
+    }
   }
 }
 
