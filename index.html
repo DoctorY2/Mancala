@@ -1,221 +1,248 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Gebeta · Mancala</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      font-family: "Georgia", serif;
-    }
+<meta charset="UTF-8">
+<title>Gebeta · Mancala</title>
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: url("background.png") no-repeat center center fixed;
-      background-size: cover;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #f5e6c8;
-    }
+<style>
+* { box-sizing: border-box; font-family: Georgia, serif; }
 
-    .game-container {
-      background: rgba(0, 0, 0, 0.55);
-      padding: 24px;
-      border-radius: 16px;
-      width: 420px;
-      text-align: center;
-      box-shadow: 0 0 40px rgba(0,0,0,0.7);
-    }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: url("background.png") no-repeat center center fixed;
+  background-size: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f5e6c8;
+}
 
-    h1 {
-      margin: 0 0 10px;
-      font-size: 28px;
-    }
+.game {
+  background: rgba(0,0,0,0.6);
+  padding: 24px 28px;
+  border-radius: 18px;
+  width: 420px;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(0,0,0,0.7);
+}
 
-    .status {
-      margin: 10px 0;
-      font-size: 16px;
-    }
+h1 { margin-top: 0; }
 
-    .name-input {
-      margin-bottom: 12px;
-    }
+#playerSetup input {
+  padding: 6px;
+  border-radius: 6px;
+  border: none;
+  width: 70%;
+  text-align: center;
+}
 
-    input {
-      padding: 6px;
-      border-radius: 6px;
-      border: none;
-      width: 70%;
-      text-align: center;
-    }
+#playerSetup button,
+#restartBtn,
+#toggleRules {
+  margin-top: 8px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #c48a55;
+  font-weight: bold;
+}
 
-    .board {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 10px;
-      margin: 20px 0;
-    }
+#board {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin: 20px 0;
+}
 
-    .pit {
-      background: #9c6b3d;
-      border-radius: 50%;
-      height: 50px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 18px;
-      font-weight: bold;
-      transition: transform 0.2s, background 0.2s;
-    }
+.pit {
+  background: #9c6b3d;
+  border-radius: 50%;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  transition: transform 0.2s, background 0.2s;
+}
 
-    .pit:hover {
-      transform: scale(1.1);
-      background: #b8844a;
-    }
+.pit:hover { transform: scale(1.1); background: #b8844a; }
 
-    .pit.disabled {
-      opacity: 0.4;
-      pointer-events: none;
-    }
+.pit.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
 
-    .scores {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 10px;
-    }
+#status { min-height: 24px; }
 
-    .winner {
-      margin-top: 12px;
-      font-size: 18px;
-      font-weight: bold;
-      color: gold;
-    }
-  </style>
+#result {
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.confetti {
+  animation: pop 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes pop {
+  from { transform: scale(1); }
+  to { transform: scale(1.1); }
+}
+
+/* Instructions box */
+#rulesBox {
+  display: none;
+  margin-top: 12px;
+  background: rgba(0,0,0,0.5);
+  padding: 12px;
+  border-radius: 10px;
+  text-align: left;
+  font-size: 14px;
+}
+</style>
 </head>
 
 <body>
-  <div class="game-container">
-    <h1>Gebeta · Mancala</h1>
 
-    <div class="name-input">
-      <input id="playerNameInput" placeholder="Enter your name" />
-    </div>
+<div class="game">
+  <h1>Gebeta · Mancala</h1>
 
-    <div class="status" id="turnStatus">Turn: Player</div>
-
-    <div class="board" id="board"></div>
-
-    <div class="scores">
-      <div id="playerScore">Player: 0</div>
-      <div id="aiScore">Yonas: 0</div>
-    </div>
-
-    <div class="winner" id="winnerText"></div>
+  <div id="playerSetup">
+    <input id="nameInput" placeholder="Enter your name">
+    <br>
+    <button onclick="startGame()">Start Game</button>
   </div>
 
-  <script>
-    const boardElement = document.getElementById("board");
-    const turnStatus = document.getElementById("turnStatus");
-    const winnerText = document.getElementById("winnerText");
-    const playerScoreEl = document.getElementById("playerScore");
-    const aiScoreEl = document.getElementById("aiScore");
-    const nameInput = document.getElementById("playerNameInput");
+  <h2 id="playerName" style="display:none;"></h2>
+  <div id="status"></div>
 
-    let pits = Array(6).fill(4);
-    let currentTurn = "player";
-    let playerScore = 0;
-    let aiScore = 0;
-    let playerName = "Player";
+  <div id="board"></div>
 
-    nameInput.addEventListener("input", () => {
-      playerName = nameInput.value || "Player";
-      playerScoreEl.textContent = `${playerName}: ${playerScore}`;
-      updateTurnText();
-    });
+  <div id="result"></div>
+  <button id="restartBtn" onclick="restartGame()" style="display:none;">
+    Restart Game
+  </button>
 
-    function updateTurnText() {
-      turnStatus.textContent =
-        currentTurn === "player"
-          ? `Turn: ${playerName}`
-          : "Turn: Yonas";
+  <!-- Instructions -->
+  <button id="toggleRules" onclick="toggleRules()">Game Instructions</button>
+  <div id="rulesBox">
+    <strong>How to play:</strong>
+    <ul>
+      <li>Each pit starts with stones.</li>
+      <li>On your turn, click one pit to collect its stones.</li>
+      <li>You gain all stones from the selected pit.</li>
+      <li>Turns alternate between you and Yonas.</li>
+      <li>The game ends when all pits are empty.</li>
+      <li>The player with the most stones wins.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+let pits = Array(6).fill(4);
+let playerScore = 0;
+let yonasScore = 0;
+let currentTurn = "";
+let playerName = "";
+let gameOver = false;
+
+const board = document.getElementById("board");
+const status = document.getElementById("status");
+const result = document.getElementById("result");
+
+function startGame() {
+  const input = document.getElementById("nameInput").value.trim();
+  if (!input) return alert("Please enter your name");
+
+  playerName = input;
+  document.getElementById("playerName").innerText = playerName + " vs Yonas";
+  document.getElementById("playerName").style.display = "block";
+  document.getElementById("playerSetup").style.display = "none";
+
+  currentTurn = Math.random() < 0.5 ? "player" : "yonas";
+  updateStatus();
+  render();
+  if (currentTurn === "yonas") setTimeout(yonasMove, 800);
+}
+
+function updateStatus() {
+  status.textContent =
+    currentTurn === "player"
+      ? "Your turn"
+      : "Yonas is thinking...";
+}
+
+function render() {
+  board.innerHTML = "";
+  pits.forEach((stones, i) => {
+    const d = document.createElement("div");
+    d.className = "pit";
+    d.textContent = stones;
+
+    if (currentTurn !== "player" || stones === 0 || gameOver) {
+      d.classList.add("disabled");
+    } else {
+      d.onclick = () => playerMove(i);
     }
+    board.appendChild(d);
+  });
+}
 
-    function renderBoard() {
-      boardElement.innerHTML = "";
-      pits.forEach((stones, index) => {
-        const pit = document.createElement("div");
-        pit.className = "pit";
-        pit.textContent = stones;
+function playerMove(i) {
+  playerScore += pits[i];
+  pits[i] = 0;
+  endTurn();
+}
 
-        if (currentTurn !== "player") {
-          pit.classList.add("disabled");
-        }
+function yonasMove() {
+  const options = pits
+    .map((v, i) => (v > 0 ? i : null))
+    .filter(v => v !== null);
 
-        pit.onclick = () => playerMove(index);
-        boardElement.appendChild(pit);
-      });
-    }
+  if (options.length === 0) return endGame();
 
-    function playerMove(index) {
-      if (pits[index] === 0) return;
+  const choice = options[Math.floor(Math.random() * options.length)];
+  yonasScore += pits[choice];
+  pits[choice] = 0;
+  endTurn();
+}
 
-      playerScore += pits[index];
-      pits[index] = 0;
+function endTurn() {
+  if (pits.every(p => p === 0)) return endGame();
 
-      endTurn();
-    }
+  currentTurn = currentTurn === "player" ? "yonas" : "player";
+  updateStatus();
+  render();
 
-    function aiMove() {
-      const available = pits
-        .map((v, i) => (v > 0 ? i : null))
-        .filter(v => v !== null);
+  if (currentTurn === "yonas") setTimeout(yonasMove, 800);
+}
 
-      if (available.length === 0) {
-        endGame();
-        return;
-      }
+function endGame() {
+  gameOver = true;
+  board.classList.add("confetti");
 
-      const choice =
-        available[Math.floor(Math.random() * available.length)];
+  let text = "";
+  if (playerScore > yonasScore) text = playerName + " Wins!";
+  else if (yonasScore > playerScore) text = "Yonas Wins!";
+  else text = "It's a Draw!";
 
-      aiScore += pits[choice];
-      pits[choice] = 0;
+  result.textContent = text;
+  document.getElementById("restartBtn").style.display = "inline-block";
+}
 
-      endTurn();
-    }
+function restartGame() {
+  location.reload();
+}
 
-    function endTurn() {
-      playerScoreEl.textContent = `${playerName}: ${playerScore}`;
-      aiScoreEl.textContent = `Yonas: ${aiScore}`;
+function toggleRules() {
+  const box = document.getElementById("rulesBox");
+  box.style.display = box.style.display === "none" ? "block" : "none";
+}
+</script>
 
-      if (pits.every(p => p === 0)) {
-        endGame();
-        return;
-      }
-
-      currentTurn = currentTurn === "player" ? "ai" : "player";
-      updateTurnText();
-      renderBoard();
-
-      if (currentTurn === "ai") {
-        setTimeout(aiMove, 800);
-      }
-    }
-
-    function endGame() {
-      if (playerScore > aiScore) {
-        winnerText.textContent = `${playerName} Wins!`;
-      } else if (aiScore > playerScore) {
-        winnerText.textContent = "Yonas Wins!";
-      } else {
-        winnerText.textContent = "It's a Draw!";
-      }
-    }
-
-    renderBoard();
-  </script>
 </body>
 </html>
