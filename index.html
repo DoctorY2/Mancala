@@ -1,8 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Gebeta · Mancala</title>
+
+<!-- ================= FARCASTER FRAME ================= -->
+<meta property="fc:frame" content="vNext">
+<meta property="fc:frame:image" content="https://doctory2.github.io/Mancala/background.png">
+<meta property="fc:frame:button:1" content="Play Mancala">
+<meta property="fc:frame:button:1:action" content="link">
+<meta property="fc:frame:button:1:target" content="https://doctory2.github.io/Mancala/">
+<!-- =================================================== -->
 
 <style>
 * { box-sizing: border-box; font-family: Georgia, serif; }
@@ -19,17 +28,18 @@ body {
 }
 
 .game {
-  background: rgba(0,0,0,0.6);
+  background: rgba(0,0,0,0.65);
   padding: 24px 28px;
   border-radius: 18px;
   width: 420px;
   text-align: center;
   box-shadow: 0 0 40px rgba(0,0,0,0.7);
+  position: relative;
 }
 
 h1 { margin-top: 0; }
 
-#playerSetup input {
+input {
   padding: 6px;
   border-radius: 6px;
   border: none;
@@ -37,9 +47,7 @@ h1 { margin-top: 0; }
   text-align: center;
 }
 
-#playerSetup button,
-#restartBtn,
-#toggleRules {
+button {
   margin-top: 8px;
   padding: 6px 14px;
   border-radius: 8px;
@@ -84,16 +92,6 @@ h1 { margin-top: 0; }
   margin-top: 10px;
 }
 
-.confetti {
-  animation: pop 0.6s ease-in-out infinite alternate;
-}
-
-@keyframes pop {
-  from { transform: scale(1); }
-  to { transform: scale(1.1); }
-}
-
-/* Instructions box */
 #rulesBox {
   display: none;
   margin-top: 12px;
@@ -103,12 +101,28 @@ h1 { margin-top: 0; }
   text-align: left;
   font-size: 14px;
 }
+
+/* Ethiopian Confetti */
+.confetti {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  top: -10px;
+  animation: fall 3s linear forwards;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(600px) rotate(360deg);
+    opacity: 0;
+  }
+}
 </style>
 </head>
 
 <body>
 
-<div class="game">
+<div class="game" id="gameBox">
   <h1>Gebeta · Mancala</h1>
 
   <div id="playerSetup">
@@ -127,17 +141,15 @@ h1 { margin-top: 0; }
     Restart Game
   </button>
 
-  <!-- Instructions -->
-  <button id="toggleRules" onclick="toggleRules()">Game Instructions</button>
+  <button onclick="toggleRules()">Game Instructions</button>
   <div id="rulesBox">
-    <strong>How to play:</strong>
     <ul>
-      <li>Each pit starts with stones.</li>
-      <li>On your turn, click one pit to collect its stones.</li>
-      <li>You gain all stones from the selected pit.</li>
-      <li>Turns alternate between you and Yonas.</li>
+      <li>Each pit starts with 4 stones.</li>
+      <li>Players take turns selecting a pit.</li>
+      <li>Stones are distributed one by one clockwise.</li>
+      <li>If the last stone lands in an empty pit, you gain 1 point.</li>
       <li>The game ends when all pits are empty.</li>
-      <li>The player with the most stones wins.</li>
+      <li>The player with the most points wins.</li>
     </ul>
   </div>
 </div>
@@ -153,12 +165,13 @@ let gameOver = false;
 const board = document.getElementById("board");
 const status = document.getElementById("status");
 const result = document.getElementById("result");
+const gameBox = document.getElementById("gameBox");
 
 function startGame() {
-  const input = document.getElementById("nameInput").value.trim();
-  if (!input) return alert("Please enter your name");
+  const name = document.getElementById("nameInput").value.trim();
+  if (!name) return alert("Please enter your name");
 
-  playerName = input;
+  playerName = name;
   document.getElementById("playerName").innerText = playerName + " vs Yonas";
   document.getElementById("playerName").style.display = "block";
   document.getElementById("playerSetup").style.display = "none";
@@ -166,72 +179,80 @@ function startGame() {
   currentTurn = Math.random() < 0.5 ? "player" : "yonas";
   updateStatus();
   render();
+
   if (currentTurn === "yonas") setTimeout(yonasMove, 800);
 }
 
 function updateStatus() {
   status.textContent =
-    currentTurn === "player"
-      ? "Your turn"
-      : "Yonas is thinking...";
+    currentTurn === "player" ? "Your turn" : "Yonas is thinking...";
 }
 
 function render() {
   board.innerHTML = "";
   pits.forEach((stones, i) => {
-    const d = document.createElement("div");
-    d.className = "pit";
-    d.textContent = stones;
+    const pit = document.createElement("div");
+    pit.className = "pit";
+    pit.textContent = stones;
 
     if (currentTurn !== "player" || stones === 0 || gameOver) {
-      d.classList.add("disabled");
+      pit.classList.add("disabled");
     } else {
-      d.onclick = () => playerMove(i);
+      pit.onclick = () => playerMove(i);
     }
-    board.appendChild(d);
+    board.appendChild(pit);
   });
 }
 
+function distribute(startIndex, scorer) {
+  let stones = pits[startIndex];
+  pits[startIndex] = 0;
+  let index = startIndex;
+
+  while (stones > 0) {
+    index = (index + 1) % pits.length;
+    pits[index]++;
+    stones--;
+  }
+
+  if (pits[index] === 1) {
+    scorer === "player" ? playerScore++ : yonasScore++;
+  }
+}
+
 function playerMove(i) {
-  playerScore += pits[i];
-  pits[i] = 0;
+  distribute(i, "player");
   endTurn();
 }
 
 function yonasMove() {
-  const options = pits
-    .map((v, i) => (v > 0 ? i : null))
-    .filter(v => v !== null);
-
+  const options = pits.map((v,i)=>v>0?i:null).filter(v=>v!==null);
   if (options.length === 0) return endGame();
 
-  const choice = options[Math.floor(Math.random() * options.length)];
-  yonasScore += pits[choice];
-  pits[choice] = 0;
+  const choice = options[Math.floor(Math.random()*options.length)];
+  distribute(choice, "yonas");
   endTurn();
 }
 
 function endTurn() {
   if (pits.every(p => p === 0)) return endGame();
-
   currentTurn = currentTurn === "player" ? "yonas" : "player";
   updateStatus();
   render();
-
   if (currentTurn === "yonas") setTimeout(yonasMove, 800);
 }
 
 function endGame() {
   gameOver = true;
-  board.classList.add("confetti");
-
   let text = "";
+
   if (playerScore > yonasScore) text = playerName + " Wins!";
   else if (yonasScore > playerScore) text = "Yonas Wins!";
   else text = "It's a Draw!";
 
   result.textContent = text;
   document.getElementById("restartBtn").style.display = "inline-block";
+  launchConfetti();
 }
 
 function restartGame() {
@@ -241,6 +262,19 @@ function restartGame() {
 function toggleRules() {
   const box = document.getElementById("rulesBox");
   box.style.display = box.style.display === "none" ? "block" : "none";
+}
+
+/* Ethiopian flag confetti */
+function launchConfetti() {
+  const colors = ["#078930", "#FCDD09", "#DA121A"];
+  for (let i = 0; i < 60; i++) {
+    const c = document.createElement("div");
+    c.className = "confetti";
+    c.style.left = Math.random() * 100 + "%";
+    c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    c.style.animationDelay = Math.random() * 0.5 + "s";
+    gameBox.appendChild(c);
+  }
 }
 </script>
 
