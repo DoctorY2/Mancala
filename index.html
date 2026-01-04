@@ -6,7 +6,7 @@ app.use(bodyParser.json());
 
 /**
  * Estado del juego por usuario (fid)
- * En producción → DB o Redis
+ * En producción usa DB
  */
 const games = new Map();
 
@@ -27,7 +27,7 @@ app.post("/frame", (req, res) => {
 
   const game = games.get(fid);
 
-  // Movimiento
+  // Movimiento simple
   if (button) {
     const i = button - 1;
     if (game.board[i] > 0) {
@@ -36,26 +36,26 @@ app.post("/frame", (req, res) => {
     }
   }
 
-  // Imagen SVG del tablero
+  // SVG del tablero
   const svg = `
-  <svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100%" height="100%" fill="#2c1c12"/>
-    <text x="300" y="40" fill="white" font-size="28" text-anchor="middle">
-      Gebeta · Mancala
-    </text>
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#2c1c12"/>
+  <text x="300" y="40" fill="white" font-size="28" text-anchor="middle">
+    Gebeta · Mancala
+  </text>
 
-    ${game.board.map((v, i) => `
-      <circle cx="${80 + i * 80}" cy="200" r="30" fill="#6b3f2a"/>
-      <text x="${80 + i * 80}" y="210" fill="white" font-size="20" text-anchor="middle">
-        ${v}
-      </text>
-    `).join("")}
-
-    <text x="300" y="350" fill="white" font-size="24" text-anchor="middle">
-      Score: ${game.score}
+  ${game.board.map((v, i) => `
+    <circle cx="${80 + i * 80}" cy="200" r="30" fill="#6b3f2a"/>
+    <text x="${80 + i * 80}" y="210" fill="white" font-size="20" text-anchor="middle">
+      ${v}
     </text>
-  </svg>
-  `;
+  `).join("")}
+
+  <text x="300" y="350" fill="white" font-size="24" text-anchor="middle">
+    Score: ${game.score}
+  </text>
+</svg>
+`;
 
   const imageBase64 = Buffer.from(svg).toString("base64");
 
@@ -79,6 +79,8 @@ app.post("/frame", (req, res) => {
 `);
 });
 
-app.listen(3000, () => {
-  console.log("✅ Frame Mancala activo en http://localhost:3000/frame");
+// 🚨 PUERTO CORRECTO PARA RAILWAY
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("✅ Frame activo en puerto", PORT);
 });
