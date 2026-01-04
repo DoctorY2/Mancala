@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Gebeta · Mancala</title>
+<title>Mancala · Ethiopian Gebeta</title>
 
 <!-- ================= FARCASTER FRAME ================= -->
 <meta property="fc:frame" content="vNext">
@@ -123,7 +123,7 @@ button {
 <body>
 
 <div class="game" id="gameBox">
-  <h1>Gebeta · Mancala</h1>
+  <h1>Mancala</h1>
 
   <div id="playerSetup">
     <input id="nameInput" placeholder="Enter your name">
@@ -144,18 +144,17 @@ button {
   <button onclick="toggleRules()">Game Instructions</button>
   <div id="rulesBox">
     <ul>
-      <li>Each pit starts with 4 stones.</li>
-      <li>Players take turns selecting a pit.</li>
+      <li>12 pits, 4 stones each.</li>
+      <li>Players can only play on their side.</li>
       <li>Stones are distributed one by one clockwise.</li>
-      <li>If the last stone lands in an empty pit, you gain 1 point.</li>
-      <li>The game ends when all pits are empty.</li>
-      <li>The player with the most points wins.</li>
+      <li>If the last stone lands on opponent side with 2 or 3 stones → capture.</li>
+      <li>Game ends when one side is empty.</li>
     </ul>
   </div>
 </div>
 
 <script>
-let pits = Array(6).fill(4);
+let pits = Array(12).fill(4);
 let playerScore = 0;
 let yonasScore = 0;
 let currentTurn = "";
@@ -190,33 +189,55 @@ function updateStatus() {
 
 function render() {
   board.innerHTML = "";
-  pits.forEach((stones, i) => {
-    const pit = document.createElement("div");
-    pit.className = "pit";
-    pit.textContent = stones;
 
-    if (currentTurn !== "player" || stones === 0 || gameOver) {
-      pit.classList.add("disabled");
-    } else {
-      pit.onclick = () => playerMove(i);
-    }
-    board.appendChild(pit);
-  });
+  // AI pits (0–5)
+  for (let i = 5; i >= 0; i--) {
+    board.appendChild(createPit(i, true));
+  }
+
+  // Player pits (6–11)
+  for (let i = 6; i < 12; i++) {
+    board.appendChild(createPit(i, false));
+  }
+}
+
+function createPit(i, isAI) {
+  const pit = document.createElement("div");
+  pit.className = "pit";
+  pit.textContent = pits[i];
+
+  if (
+    gameOver ||
+    (currentTurn === "player" && isAI) ||
+    (currentTurn === "yonas" && !isAI) ||
+    pits[i] === 0
+  ) {
+    pit.classList.add("disabled");
+  } else {
+    pit.onclick = () => currentTurn === "player" && playerMove(i);
+  }
+  return pit;
 }
 
 function distribute(startIndex, scorer) {
   let stones = pits[startIndex];
   pits[startIndex] = 0;
-  let index = startIndex;
+  let i = startIndex;
 
-  while (stones > 0) {
-    index = (index + 1) % pits.length;
-    pits[index]++;
-    stones--;
+  while (stones--) {
+    i = (i + 1) % 12;
+    pits[i]++;
   }
 
-  if (pits[index] === 1) {
-    scorer === "player" ? playerScore++ : yonasScore++;
+  const isOpponent =
+    (scorer === "player" && i < 6) ||
+    (scorer === "yonas" && i >= 6);
+
+  if (isOpponent && (pits[i] === 2 || pits[i] === 3)) {
+    scorer === "player"
+      ? (playerScore += pits[i])
+      : (yonasScore += pits[i]);
+    pits[i] = 0;
   }
 }
 
@@ -226,16 +247,45 @@ function playerMove(i) {
 }
 
 function yonasMove() {
-  const options = pits.map((v,i)=>v>0?i:null).filter(v=>v!==null);
-  if (options.length === 0) return endGame();
+  let best = null;
+  let bestScore = -1;
 
-  const choice = options[Math.floor(Math.random()*options.length)];
-  distribute(choice, "yonas");
+  for (let i = 0; i < 6; i++) {
+    if (pits[i] === 0) continue;
+
+    const sim = [...pits];
+    let stones = sim[i];
+    sim[i] = 0;
+    let j = i;
+
+    while (stones--) {
+      j = (j + 1) % 12;
+      sim[j]++;
+    }
+
+    if (j >= 6 && (sim[j] === 2 || sim[j] === 3)) {
+      if (sim[j] > bestScore) {
+        bestScore = sim[j];
+        best = i;
+      }
+    }
+  }
+
+  const move =
+    best !== null
+      ? best
+      : pits.map((v,i)=>v>0?i:null).filter(v=>v!==null)[0];
+
+  distribute(move, "yonas");
   endTurn();
 }
 
 function endTurn() {
-  if (pits.every(p => p === 0)) return endGame();
+  if (
+    pits.slice(0,6).every(p => p === 0) ||
+    pits.slice(6).every(p => p === 0)
+  ) return endGame();
+
   currentTurn = currentTurn === "player" ? "yonas" : "player";
   updateStatus();
   render();
@@ -244,13 +294,14 @@ function endTurn() {
 
 function endGame() {
   gameOver = true;
-  let text = "";
 
-  if (playerScore > yonasScore) text = playerName + " Wins!";
-  else if (yonasScore > playerScore) text = "Yonas Wins!";
-  else text = "It's a Draw!";
+  if (playerScore > yonasScore)
+    result.textContent = playerName + " Wins!";
+  else if (yonasScore > playerScore)
+    result.textContent = "Yonas Wins!";
+  else
+    result.textContent = "It's a Draw!";
 
-  result.textContent = text;
   document.getElementById("restartBtn").style.display = "inline-block";
   launchConfetti();
 }
@@ -264,7 +315,6 @@ function toggleRules() {
   box.style.display = box.style.display === "none" ? "block" : "none";
 }
 
-/* Ethiopian flag confetti */
 function launchConfetti() {
   const colors = ["#078930", "#FCDD09", "#DA121A"];
   for (let i = 0; i < 60; i++) {
