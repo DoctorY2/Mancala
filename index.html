@@ -84,7 +84,14 @@ button {
   pointer-events: none;
 }
 
-#status, #turnCounter { min-height: 20px; }
+#status, #turnCounter, #scoreBoard {
+  min-height: 20px;
+  margin-top: 4px;
+}
+
+#scoreBoard {
+  font-weight: bold;
+}
 
 #result {
   font-size: 20px;
@@ -132,8 +139,10 @@ button {
   </div>
 
   <h2 id="playerName" style="display:none;"></h2>
+
   <div id="status"></div>
   <div id="turnCounter"></div>
+  <div id="scoreBoard"></div>
 
   <div id="board"></div>
 
@@ -151,7 +160,7 @@ button {
       <li>On your turn, select one of your pits.</li>
       <li>All stones are distributed <strong>one by one clockwise</strong>.</li>
       <li>If the last stone lands on the opponent side and that pit has <strong>2 or 3 stones</strong>, you capture them.</li>
-      <li>The game lasts <strong>30 turns</strong>.</li>
+      <li>The game lasts <strong>15 rounds</strong> (you + AI).</li>
       <li>The player with the most captured stones wins.</li>
     </ul>
   </div>
@@ -165,14 +174,15 @@ let currentTurn = "";
 let playerName = "";
 let gameOver = false;
 
-let maxTurns = 30;
-let turnCount = 0;
+let maxRounds = 15;   // 15 rondas = jugador + IA
+let roundCount = 1;
 
 const board = document.getElementById("board");
 const status = document.getElementById("status");
 const result = document.getElementById("result");
 const gameBox = document.getElementById("gameBox");
 const turnCounter = document.getElementById("turnCounter");
+const scoreBoard = document.getElementById("scoreBoard");
 
 function startGame() {
   const name = document.getElementById("nameInput").value.trim();
@@ -193,7 +203,8 @@ function startGame() {
 function updateStatus() {
   status.textContent =
     currentTurn === "player" ? "Your turn" : "Yonas is thinking...";
-  turnCounter.textContent = "Turn " + turnCount + " / " + maxTurns;
+  turnCounter.textContent = `Round ${roundCount} / ${maxRounds}`;
+  scoreBoard.textContent = `${playerName}: ${playerScore} | Yonas: ${yonasScore}`;
 }
 
 function render() {
@@ -283,20 +294,23 @@ function yonasMove() {
   const move =
     best !== null
       ? best
-      : pits.map((v,i)=>v>0?i:null).filter(v=>v!==null)[0];
+      : pits.slice(0,6).findIndex(v => v > 0);
 
   distribute(move, "yonas");
   endTurn();
 }
 
 function endTurn() {
-  turnCount++;
-
-  if (turnCount >= maxTurns) return endGame();
+  // Si acaba de jugar la IA, se completa la ronda
+  if (currentTurn === "yonas") {
+    roundCount++;
+    if (roundCount > maxRounds) return endGame();
+  }
 
   currentTurn = currentTurn === "player" ? "yonas" : "player";
   updateStatus();
   render();
+
   if (currentTurn === "yonas") setTimeout(yonasMove, 800);
 }
 
@@ -338,6 +352,7 @@ function launchConfetti() {
     c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
     c.style.animationDelay = Math.random() * 0.5 + "s";
     gameBox.appendChild(c);
+    setTimeout(() => c.remove(), 3000);
   }
 }
 </script>
