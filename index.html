@@ -1,68 +1,185 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Gebeta · Mancala</title>
-  <style>
-    body {
-      background: linear-gradient(#3a2415, #1e1209);
-      color: #f5e6c8;
-      font-family: serif;
-      text-align: center;
-      padding-top: 40px;
-    }
-    .board {
-      display: grid;
-      grid-template-columns: repeat(6, 80px);
-      gap: 10px;
-      justify-content: center;
-      margin-top: 30px;
-    }
-    button {
-      width: 80px;
-      height: 80px;
-      font-size: 22px;
-      border-radius: 50%;
-      border: none;
-      background: #8b5a2b;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #a66b36;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Gebeta · Mancala</title>
+<style>
+body {
+  margin: 0;
+  font-family: serif;
+  background: linear-gradient(#3b2414, #1b0f08);
+  color: #f5e6c8;
+  text-align: center;
+}
+
+h1 { margin-top: 20px; }
+
+#board {
+  display: grid;
+  grid-template-columns: 80px repeat(6, 80px) 80px;
+  grid-template-rows: repeat(2, 80px);
+  gap: 10px;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+.pit, .store {
+  border-radius: 50%;
+  background: #9c6b3b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.store {
+  grid-row: span 2;
+  border-radius: 20px;
+  cursor: default;
+  background: #6f4a2a;
+}
+
+.disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+#status {
+  margin-top: 20px;
+  font-size: 18px;
+}
+</style>
 </head>
+
 <body>
 
 <h1>Gebeta · Mancala</h1>
-<h2>Puntuación: <span id="score">0</span></h2>
+<div id="status"></div>
 
-<div class="board" id="board"></div>
+<div id="board"></div>
 
 <script>
-  let board = [4,4,4,4,4,4];
-  let score = 0;
+let board = [
+  4,4,4,4,4,4,  // Jugador 1
+  0,            // Almacén J1
+  4,4,4,4,4,4,  // Jugador 2
+  0             // Almacén J2
+];
 
-  function draw() {
-    const b = document.getElementById("board");
-    b.innerHTML = "";
-    board.forEach((stones, i) => {
-      const btn = document.createElement("button");
-      btn.textContent = stones;
-      btn.onclick = () => play(i);
-      b.appendChild(btn);
-    });
-    document.getElementById("score").textContent = score;
+let currentPlayer = 1;
+const boardDiv = document.getElementById("board");
+const statusDiv = document.getElementById("status");
+
+function render() {
+  boardDiv.innerHTML = "";
+
+  // Fila superior (Jugador 2)
+  boardDiv.appendChild(createStore(13));
+  for (let i = 12; i >= 7; i--) boardDiv.appendChild(createPit(i));
+  boardDiv.appendChild(document.createElement("div"));
+
+  // Fila inferior (Jugador 1)
+  boardDiv.appendChild(document.createElement("div"));
+  for (let i = 0; i <= 5; i++) boardDiv.appendChild(createPit(i));
+  boardDiv.appendChild(createStore(6));
+
+  statusDiv.textContent = "Turno: Jugador " + currentPlayer;
+}
+
+function createPit(i) {
+  const d = document.createElement("div");
+  d.className = "pit";
+  d.textContent = board[i];
+
+  const isPlayer1 = i >= 0 && i <= 5;
+  const isPlayer2 = i >= 7 && i <= 12;
+
+  if (
+    board[i] === 0 ||
+    (currentPlayer === 1 && !isPlayer1) ||
+    (currentPlayer === 2 && !isPlayer2)
+  ) {
+    d.classList.add("disabled");
+  } else {
+    d.onclick = () => move(i);
   }
 
-  function play(i) {
-    score += board[i];
-    board[i] = 0;
-    draw();
+  return d;
+}
+
+function createStore(i) {
+  const d = document.createElement("div");
+  d.className = "store";
+  d.textContent = board[i];
+  return d;
+}
+
+function move(start) {
+  let stones = board[start];
+  board[start] = 0;
+  let i = start;
+
+  while (stones > 0) {
+    i = (i + 1) % 14;
+
+    if (
+      (currentPlayer === 1 && i === 13) ||
+      (currentPlayer === 2 && i === 6)
+    ) continue;
+
+    board[i]++;
+    stones--;
   }
 
-  draw();
+  // Captura
+  if (
+    board[i] === 1 &&
+    ((currentPlayer === 1 && i >= 0 && i <= 5) ||
+     (currentPlayer === 2 && i >= 7 && i <= 12))
+  ) {
+    let opposite = 12 - i;
+    let store = currentPlayer === 1 ? 6 : 13;
+
+    if (board[opposite] > 0) {
+      board[store] += board[opposite] + 1;
+      board[i] = 0;
+      board[opposite] = 0;
+    }
+  }
+
+  // Turno extra
+  let storeIndex = currentPlayer === 1 ? 6 : 13;
+  if (i !== storeIndex) currentPlayer = currentPlayer === 1 ? 2 : 1;
+
+  checkEnd();
+  render();
+}
+
+function checkEnd() {
+  let p1Empty = board.slice(0,6).every(x => x === 0);
+  let p2Empty = board.slice(7,13).every(x => x === 0);
+
+  if (p1Empty || p2Empty) {
+    for (let i = 0; i < 6; i++) {
+      board[6] += board[i];
+      board[i] = 0;
+    }
+    for (let i = 7; i < 13; i++) {
+      board[13] += board[i];
+      board[i] = 0;
+    }
+
+    let winner =
+      board[6] > board[13] ? "Jugador 1 gana" :
+      board[13] > board[6] ? "Jugador 2 gana" :
+      "Empate";
+
+    statusDiv.textContent = winner;
+  }
+}
+
+render();
 </script>
 
 </body>
