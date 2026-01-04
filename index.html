@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mancala · Ethiopian Gebeta</title>
+<title>Mancala · Fast Ethiopian Game</title>
 
 <!-- ================= FARCASTER FRAME ================= -->
 <meta property="fc:frame" content="vNext">
@@ -84,7 +84,7 @@ button {
   pointer-events: none;
 }
 
-#status { min-height: 24px; }
+#status, #turnCounter { min-height: 20px; }
 
 #result {
   font-size: 20px;
@@ -133,6 +133,7 @@ button {
 
   <h2 id="playerName" style="display:none;"></h2>
   <div id="status"></div>
+  <div id="turnCounter"></div>
 
   <div id="board"></div>
 
@@ -141,14 +142,17 @@ button {
     Restart Game
   </button>
 
-  <button onclick="toggleRules()">Game Instructions</button>
+  <button onclick="toggleRules()">Game Rules</button>
   <div id="rulesBox">
     <ul>
-      <li>12 pits, 4 stones each.</li>
-      <li>Players can only play on their side.</li>
-      <li>Stones are distributed one by one clockwise.</li>
-      <li>If the last stone lands on opponent side with 2 or 3 stones → capture.</li>
-      <li>Game ends when one side is empty.</li>
+      <li><strong>Fast Mancala</strong> (Ethiopian inspired).</li>
+      <li>12 pits total, 4 stones in each pit.</li>
+      <li>You play the bottom row. Yonas (AI) plays the top row.</li>
+      <li>On your turn, select one of your pits.</li>
+      <li>All stones are distributed <strong>one by one clockwise</strong>.</li>
+      <li>If the last stone lands on the opponent side and that pit has <strong>2 or 3 stones</strong>, you capture them.</li>
+      <li>The game lasts <strong>30 turns</strong>.</li>
+      <li>The player with the most captured stones wins.</li>
     </ul>
   </div>
 </div>
@@ -161,10 +165,14 @@ let currentTurn = "";
 let playerName = "";
 let gameOver = false;
 
+let maxTurns = 30;
+let turnCount = 0;
+
 const board = document.getElementById("board");
 const status = document.getElementById("status");
 const result = document.getElementById("result");
 const gameBox = document.getElementById("gameBox");
+const turnCounter = document.getElementById("turnCounter");
 
 function startGame() {
   const name = document.getElementById("nameInput").value.trim();
@@ -185,6 +193,7 @@ function startGame() {
 function updateStatus() {
   status.textContent =
     currentTurn === "player" ? "Your turn" : "Yonas is thinking...";
+  turnCounter.textContent = "Turn " + turnCount + " / " + maxTurns;
 }
 
 function render() {
@@ -281,10 +290,9 @@ function yonasMove() {
 }
 
 function endTurn() {
-  if (
-    pits.slice(0,6).every(p => p === 0) ||
-    pits.slice(6).every(p => p === 0)
-  ) return endGame();
+  turnCount++;
+
+  if (turnCount >= maxTurns) return endGame();
 
   currentTurn = currentTurn === "player" ? "yonas" : "player";
   updateStatus();
@@ -295,12 +303,18 @@ function endTurn() {
 function endGame() {
   gameOver = true;
 
+  let text = "";
   if (playerScore > yonasScore)
-    result.textContent = playerName + " Wins!";
+    text = playerName + " Wins!";
   else if (yonasScore > playerScore)
-    result.textContent = "Yonas Wins!";
+    text = "Yonas Wins!";
   else
-    result.textContent = "It's a Draw!";
+    text = "It's a Draw!";
+
+  result.innerHTML = `
+    ${text}<br>
+    <small>Final score: ${playerScore} – ${yonasScore}</small>
+  `;
 
   document.getElementById("restartBtn").style.display = "inline-block";
   launchConfetti();
