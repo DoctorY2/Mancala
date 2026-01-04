@@ -1,241 +1,71 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gebeta</title>
+<script>
+const aiBoard = document.getElementById("aiBoard");
+const humanBoard = document.getElementById("humanBoard");
+const humanScore = document.getElementById("humanScore");
+const aiScore = document.getElementById("aiScore");
+const turnText = document.getElementById("turnText");
+const humanMancala = document.getElementById("humanMancala");
+const aiMancala = document.getElementById("aiMancala");
 
-  <!-- Farcaster Frame -->
-  <meta property="fc:frame" content="vNext">
-  <meta property="fc:frame:image" content="https://picsum.photos/600/400">
-  <meta property="fc:frame:button:1" content="Jugar">
+let board = Array(12).fill(4);
+let scores = { human: 0, ai: 0 };
+let current = "human";
 
-  <style>
-    body {
-      margin: 0;
-      font-family: system-ui, sans-serif;
-      background: #2c1c12;
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      height: 100vh; /* Asegura que el body ocupe toda la altura */
-      align-items: center; /* Centrado vertical */
+function render() {
+  aiBoard.innerHTML = "";
+  humanBoard.innerHTML = "";
+
+  for (let i = 5; i >= 0; i--) aiBoard.appendChild(pit(i));
+  for (let i = 6; i < 12; i++) humanBoard.appendChild(pit(i));
+
+  humanScore.textContent = scores.human;
+  aiScore.textContent = scores.ai;
+  humanMancala.textContent = scores.human;
+  aiMancala.textContent = scores.ai;
+  turnText.textContent = current === "human" ? "Tu turno" : "Turno IA";
+}
+
+function pit(i) {
+  const el = document.createElement("div");
+  el.className = "pit";
+  el.textContent = board[i];
+
+  if (current === "human" && i >= 6 && board[i] > 0) {
+    el.onclick = () => move(i);
+  } else {
+    el.classList.add("disabled");
+  }
+
+  return el;
+}
+
+function move(i) {
+  let stones = board[i];
+  board[i] = 0;
+  let index = i;
+
+  while (stones > 0) {
+    index = (index + 1) % 12;
+    board[index]++;
+    stones--;
+  }
+
+  current = current === "human" ? "ai" : "human";
+  render();
+
+  if (current === "ai") {
+    setTimeout(aiMove, 600);
+  }
+}
+
+function aiMove() {
+  for (let i = 0; i < 6; i++) {
+    if (board[i] > 0) {
+      move(i);
+      break;
     }
+  }
+}
 
-    .app {
-      width: 100%;
-      max-width: 420px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-    }
-
-    h1 {
-      text-align: center;
-      margin: 6px 0;
-    }
-
-    .score, .turn {
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    .board {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr); /* 6 casillas por fila */
-      gap: 10px;
-      margin: 12px 0;
-      width: 100%;
-      justify-content: center;
-    }
-
-    .pit {
-      background: #6b3f2a;
-      border-radius: 50%;
-      height: 60px;
-      width: 60px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 18px;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-
-    .pit.disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    .pit:hover {
-      background-color: #8a542a; /* Efecto al pasar el ratón */
-    }
-
-    #turnText {
-      font-weight: bold;
-      margin-top: 10px;
-    }
-
-    .mancala {
-      width: 70px;
-      height: 140px;
-      background-color: #4e2a1f;
-      border-radius: 10px;
-      margin-top: 10px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 24px;
-    }
-  </style>
-</head>
-
-<body>
-  <div class="app">
-    <h1>Gebeta</h1>
-
-    <div class="score">
-      🤖 IA: <span id="aiScore">0</span> |
-      🧑 Tú: <span id="humanScore">0</span>
-    </div>
-
-    <div class="board" id="aiBoard"></div> <!-- Tablero IA -->
-    <div class="board" id="humanBoard"></div> <!-- Tablero Humano -->
-
-    <div id="turnText">Tu turno</div>
-
-    <div class="mancala" id="humanMancala">0</div> <!-- Mancala Jugador -->
-    <div class="mancala" id="aiMancala">0</div> <!-- Mancala IA -->
-  </div>
-
-  <script>
-    const aiBoard = document.getElementById("aiBoard");
-    const humanBoard = document.getElementById("humanBoard");
-    const humanScore = document.getElementById("humanScore");
-    const aiScore = document.getElementById("aiScore");
-    const turnText = document.getElementById("turnText");
-
-    const humanMancala = document.getElementById("humanMancala");
-    const aiMancala = document.getElementById("aiMancala");
-
-    let board = Array(12).fill(4);  // Inicializar tablero con 4 piedras en cada casilla
-    let scores = { human: 0, ai: 0 };
-    let current = "human";
-
-    // Función para renderizar el tablero
-    function render() {
-      aiBoard.innerHTML = "";
-      humanBoard.innerHTML = "";
-
-      // Renderizar las casillas de la IA (primer fila)
-      for (let i = 5; i >= 0; i--) aiBoard.appendChild(pit(i));
-
-      // Renderizar las casillas del jugador humano (segunda fila)
-      for (let i = 6; i < 12; i++) humanBoard.appendChild(pit(i));
-
-      humanScore.textContent = scores.human;
-      aiScore.textContent = scores.ai;
-      turnText.textContent = current === "human" ? "Tu turno" : "Turno IA";
-      humanMancala.textContent = scores.human;
-      aiMancala.textContent = scores.ai;
-    }
-
-    // Función para crear las casillas del tablero
-    function pit(i) {
-      const pitElement = document.createElement("div");
-      pitElement.classList.add("pit");
-      pitElement.textContent = board[i];
-
-      // Si es el turno del jugador humano y la casilla no está vacía, habilitarla para hacer clic
-      if (current === "human" && i >= 6) {
-        pitElement.classList.remove("disabled");
-        pitElement.onclick = () => humanMove(i);
-      } else {
-        pitElement.classList.add("disabled");
-      }
-
-      return pitElement;
-    }
-
-    // Movimiento del jugador humano
-    function humanMove(i) {
-      const stones = board[i];
-      board[i] = 0;
-      let index = i;
-
-      // Distribuir las piedras en sentido antihorario
-      while (stones > 0) {
-        index = (index + 1) % 12;
-        if (index === 6) continue; // El mancala del jugador no recibe piedras
-        board[index]++;
-        stones--;
-      }
-
-      scores.human += board[6];
-      scores.ai += board[12];
-
-      current = "ai"; // Cambio de turno a la IA
-      render();
-
-      if (checkWinner()) return; // Comprobar si el juego ha terminado
-      aiMove(); // Hacer el movimiento de la IA después de que el jugador humano termine
-    }
-
-    // Movimiento de la IA
-    function aiMove() {
-      let moveMade = false;
-      for (let i = 0; i < 6; i++) {
-        if (board[i] > 0) {
-          let stones = board[i];
-          board[i] = 0;
-          let index = i;
-
-          while (stones > 0) {
-            index = (index + 1) % 12;
-            if (index === 6) continue; // El mancala de la IA no recibe piedras
-            board[index]++;
-            stones--;
-          }
-
-          scores.human += board[6];
-          scores.ai += board[12];
-
-          current = "human"; // Cambio de turno al jugador humano
-          render();
-          moveMade = true;
-          break;
-        }
-      }
-
-      if (!moveMade) {
-        checkWinner(); // Si no hay movimiento disponible, verificar el ganador
-      }
-    }
-
-    // Comprobar si alguien ha ganado
-    function checkWinner() {
-      if (scores.human + scores.ai === 48) {
-        if (scores.human > scores.ai) {
-          alert("¡Ganaste!");
-        } else if (scores.ai > scores.human) {
-          alert("La IA ganó");
-        } else {
-          alert("Empate");
-        }
-
-        // Resetear el juego
-        board = Array(12).fill(4);
-        scores = { human: 0, ai: 0 };
-        render();
-        return true;
-      }
-      return false;
-    }
-
-    render(); // Llamar al renderizado inicial
-  </script>
-</body>
-</html>
-
+render();
+</script>
