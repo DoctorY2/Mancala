@@ -60,6 +60,7 @@ button {
 #board {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(2, auto);
   gap: 10px;
   margin: 20px 0;
 }
@@ -101,6 +102,8 @@ button {
   text-align: left;
   font-size: 14px;
 }
+
+  document.getElementById("playerSetup").style.display = "block";
 
 /* Ethiopian Confetti */
 .confetti {
