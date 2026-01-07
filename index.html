@@ -23,7 +23,7 @@ body {
   background: rgba(0,0,0,0.65);
   padding: 24px 28px;
   border-radius: 18px;
-  width: 450px;
+  width: 460px;
   text-align: center;
   box-shadow: 0 0 40px rgba(0,0,0,0.7);
   position: relative;
@@ -52,6 +52,7 @@ button {
 #board {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(2, auto);
   gap: 10px;
   margin: 20px 0;
 }
@@ -61,12 +62,10 @@ button {
   border-radius: 50%;
   height: 60px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 18px;
-  font-weight: bold;
-  color: #fff;
   position: relative;
 }
 
@@ -75,12 +74,18 @@ button {
   pointer-events: none;
 }
 
-.piece {
-  width: 12px;
-  height: 12px;
-  background: #FFF;
+.stone {
+  width: 10px;
+  height: 10px;
+  background: #fff;
   border-radius: 50%;
   margin: 1px;
+  animation: drop 0.3s ease;
+}
+
+@keyframes drop {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 #status, #roundCounter, #scoreBoard {
@@ -103,17 +108,6 @@ button {
   border-radius: 10px;
   text-align: left;
   font-size: 14px;
-}
-
-.link-fc {
-  margin-top: 20px;
-  font-size: 16px;
-  font-weight: bold;
-}
-
-.link-fc a {
-  text-decoration: none;
-  color: #c48a55;
 }
 </style>
 </head>
@@ -143,31 +137,23 @@ button {
     Restart Game
   </button>
 
-  <!-- 🔹 Game Rules -->
-  <button onclick="toggleRules()">Game Rules</button>
+  <button onclick="toggleRules()">How to Play</button>
+
   <div id="rulesBox">
     <ul>
-      <li>Fast Mancala (Ethiopian inspired).</li>
+      <li>Fast Mancala inspired by Ethiopian Gebeta.</li>
       <li>12 pits total, 4 stones in each pit.</li>
       <li>You play the bottom row. Yonas (AI) plays the top row.</li>
-      <li>Stones are distributed <strong>one by one clockwise</strong>.</li>
-      <li>If the last stone lands on the opponent side and that pit has <strong>2 or 3 stones</strong>, you capture them.</li>
-      <li>The game lasts <strong>15 rounds</strong> (you + AI).</li>
+      <li>Select one pit on your turn.</li>
+      <li>Stones move <strong>one by one clockwise</strong>.</li>
+      <li>If your last stone lands on the opponent side and that pit has <strong>2 or 3 stones</strong>, you capture them.</li>
+      <li>The game lasts <strong>9 rounds</strong> (you + AI).</li>
       <li>The player with the most captured stones wins.</li>
     </ul>
   </div>
-
-  <!-- 🔹 Follow on Farcaster -->
-  <div class="link-fc">
-    Follow &amp; support on Farcaster:<br>
-    <a href="https://farcaster.xyz/mancala" target="_blank">https://farcaster.xyz/mancala</a>
-  </div>
-
 </div>
 
 <script>
-
-// ⚙️ Game data
 let pits = Array(12).fill(4);
 let playerScore = 0;
 let yonasScore = 0;
@@ -175,46 +161,37 @@ let currentTurn = "";
 let playerName = "";
 let gameOver = false;
 
-let maxRounds = 15;
+let maxRounds = 9;
 let roundCount = 1;
 
-// DOM refs
 const board = document.getElementById("board");
 const status = document.getElementById("status");
 const result = document.getElementById("result");
-const gameBox = document.getElementById("gameBox");
-const turnCounter = document.getElementById("roundCounter");
+const roundCounter = document.getElementById("roundCounter");
 const scoreBoard = document.getElementById("scoreBoard");
 
-// 🟢 Start game
 function startGame() {
   const name = document.getElementById("nameInput").value.trim();
-  if (!name) return alert("Please enter your name");
+  if (!name) return alert("Enter your name");
 
   playerName = name;
   document.getElementById("playerName").innerText = playerName + " vs Yonas";
   document.getElementById("playerName").style.display = "block";
   document.getElementById("playerSetup").style.display = "none";
 
-  currentTurn = Math.random() < 0.5 ? "player" : "yonas";
+  currentTurn = "player";
   updateStatus();
   render();
-
-  if (currentTurn === "yonas") setTimeout(yonasMove, 800);
 }
 
-// 🔄 Update UI status
 function updateStatus() {
-  status.textContent =
-    currentTurn === "player" ? "Your turn" : "Yonas is thinking...";
-  turnCounter.textContent = `Round ${roundCount} / ${maxRounds}`;
+  status.textContent = currentTurn === "player" ? "Your turn" : "Yonas is thinking...";
+  roundCounter.textContent = `Round ${roundCount} / ${maxRounds}`;
   scoreBoard.textContent = `${playerName}: ${playerScore} | Yonas: ${yonasScore}`;
 }
 
-// 🪵 Render board with graphical pieces
 function render() {
   board.innerHTML = "";
-
   for (let i = 5; i >= 0; i--) board.appendChild(createPit(i, true));
   for (let i = 6; i < 12; i++) board.appendChild(createPit(i, false));
 }
@@ -223,13 +200,10 @@ function createPit(i, isAI) {
   const pit = document.createElement("div");
   pit.className = "pit";
 
-  // Add number count plus little pieces
-  let count = pits[i];
-  pit.innerHTML = "";
-  for (let n = 0; n < count; n++) {
-    const piece = document.createElement("div");
-    piece.className = "piece";
-    pit.appendChild(piece);
+  for (let s = 0; s < pits[i]; s++) {
+    const stone = document.createElement("div");
+    stone.className = "stone";
+    pit.appendChild(stone);
   }
 
   if (
@@ -240,22 +214,33 @@ function createPit(i, isAI) {
   ) {
     pit.classList.add("disabled");
   } else {
-    pit.onclick = () => currentTurn === "player" && playerMove(i);
+    pit.onclick = () => currentTurn === "player" && animatedMove(i, "player");
   }
   return pit;
 }
 
-// 🔁 Distribute stones & captures
-function distribute(startIndex, scorer) {
+/* 🎞 Animated distribution */
+function animatedMove(startIndex, scorer) {
   let stones = pits[startIndex];
   pits[startIndex] = 0;
   let i = startIndex;
 
-  while (stones--) {
+  function dropStone() {
+    if (stones === 0) {
+      checkCapture(i, scorer);
+      endTurn();
+      return;
+    }
     i = (i + 1) % 12;
     pits[i]++;
+    stones--;
+    render();
+    setTimeout(dropStone, 200);
   }
+  dropStone();
+}
 
+function checkCapture(i, scorer) {
   const isOpponent =
     (scorer === "player" && i < 6) ||
     (scorer === "yonas" && i >= 6);
@@ -268,26 +253,14 @@ function distribute(startIndex, scorer) {
   }
 }
 
-// 🧑‍🤝‍🧑 Player move
-function playerMove(i) {
-  distribute(i, "player");
-  endTurn();
-}
-
-// 🤖 IA move (simple random)
 function yonasMove() {
-  let validMoves = [];
-  for (let i = 0; i < 6; i++) {
-    if (pits[i] > 0) validMoves.push(i);
-  }
-  if (validMoves.length === 0) return endGame();
+  let options = [];
+  for (let i = 0; i < 6; i++) if (pits[i] > 0) options.push(i);
+  if (!options.length) return endGame();
 
-  const move = validMoves[Math.floor(Math.random() * validMoves.length)];
-  distribute(move, "yonas");
-  endTurn();
+  animatedMove(options[Math.floor(Math.random() * options.length)], "yonas");
 }
 
-// 🔄 End turn & round logic
 function endTurn() {
   if (currentTurn === "yonas") {
     roundCount++;
@@ -296,35 +269,37 @@ function endTurn() {
 
   currentTurn = currentTurn === "player" ? "yonas" : "player";
   updateStatus();
-  render();
-
-  if (currentTurn === "yonas") setTimeout(yonasMove, 800);
+  if (currentTurn === "yonas") setTimeout(yonasMove, 600);
 }
 
-// 🏁 End game
 function endGame() {
   gameOver = true;
-
   let text =
     playerScore > yonasScore ? `${playerName} Wins!` :
     yonasScore > playerScore ? `Yonas Wins!` :
     "It's a Draw!";
 
-  result.innerHTML = `${text}<br><small>Final score: ${playerScore} – ${yonasScore}</small>`;
-  document.getElementById("restartBtn").style.display = "inline-block";
+  result.innerHTML = `
+    ${text}<br>
+    <small>Final score: ${playerScore} – ${yonasScore}</small><br><br>
+    <button onclick="shareResult()">Share result on Farcaster</button>
+  `;
 }
 
-// 🔄 Restart
+function shareResult() {
+  const text = `I just played Mancala 🪨\nScore: ${playerScore}–${yonasScore}\nCan you beat me?`;
+  const url = "https://warpcast.com/~/compose?text=" + encodeURIComponent(text);
+  window.open(url, "_blank");
+}
+
 function restartGame() {
   location.reload();
 }
 
-// 📜 Toggle rules
 function toggleRules() {
   const box = document.getElementById("rulesBox");
   box.style.display = box.style.display === "none" ? "block" : "none";
 }
-
 </script>
 
 </body>
