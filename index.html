@@ -21,9 +21,9 @@ body {
 
 .game {
   background: rgba(0,0,0,0.65);
-  padding: 24px 28px;
+  padding: 22px;
   border-radius: 18px;
-  width: 460px;
+  width: 420px;
   text-align: center;
   box-shadow: 0 0 40px rgba(0,0,0,0.7);
   position: relative;
@@ -54,19 +54,33 @@ button {
   grid-template-columns: repeat(6, 1fr);
   grid-template-rows: repeat(2, auto);
   gap: 10px;
-  margin: 20px 0;
+  margin: 16px 0;
 }
 
 .pit {
   background: #9c6b3d;
   border-radius: 50%;
-  height: 60px;
+  height: 52px;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  font-weight: bold;
   position: relative;
+}
+
+.seed {
+  width: 10px;
+  height: 10px;
+  background: #f5e6c8;
+  border-radius: 50%;
+  position: absolute;
+  animation: drop 0.09s ease-in;
+}
+
+@keyframes drop {
+  from { transform: translateY(-15px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 .pit.disabled {
@@ -74,40 +88,28 @@ button {
   pointer-events: none;
 }
 
-.stone {
-  width: 10px;
-  height: 10px;
-  background: #fff;
-  border-radius: 50%;
-  margin: 1px;
-  animation: drop 0.3s ease;
-}
-
-@keyframes drop {
-  from { transform: translateY(-10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-#status, #roundCounter, #scoreBoard {
+#status, #rounds, #score {
   min-height: 20px;
 }
 
-#scoreBoard { font-weight: bold; }
-
 #result {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: bold;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 #rulesBox {
   display: none;
-  margin-top: 12px;
-  background: rgba(0,0,0,0.5);
-  padding: 12px;
-  border-radius: 10px;
-  text-align: left;
   font-size: 14px;
+  text-align: left;
+  background: rgba(0,0,0,0.5);
+  padding: 10px;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+.share {
+  margin-top: 10px;
 }
 </style>
 </head>
@@ -123,32 +125,34 @@ button {
     <button onclick="startGame()">Start Game</button>
   </div>
 
-  <h2 id="playerName" style="display:none;"></h2>
+  <h3 id="playerName" style="display:none;"></h3>
 
   <div id="status"></div>
-  <div id="roundCounter"></div>
-  <div id="scoreBoard"></div>
+  <div id="rounds"></div>
+  <div id="score"></div>
 
   <div id="board"></div>
 
   <div id="result"></div>
 
   <button id="restartBtn" onclick="restartGame()" style="display:none;">
-    Restart Game
+    Play Again
   </button>
+
+  <div class="share" id="shareBox" style="display:none;">
+    <button onclick="shareResult()">Share on Farcaster</button>
+  </div>
 
   <button onclick="toggleRules()">How to Play</button>
 
   <div id="rulesBox">
     <ul>
-      <li>Fast Mancala inspired by Ethiopian Gebeta.</li>
-      <li>12 pits total, 4 stones in each pit.</li>
-      <li>You play the bottom row. Yonas (AI) plays the top row.</li>
-      <li>Select one pit on your turn.</li>
-      <li>Stones move <strong>one by one clockwise</strong>.</li>
-      <li>If your last stone lands on the opponent side and that pit has <strong>2 or 3 stones</strong>, you capture them.</li>
-      <li>The game lasts <strong>9 rounds</strong> (you + AI).</li>
-      <li>The player with the most captured stones wins.</li>
+      <li>Each pit starts with 4 seeds.</li>
+      <li>Players take turns selecting pits from their row.</li>
+      <li>Seeds are distributed one by one clockwise.</li>
+      <li>If your last seed lands on the opponent side and makes 2 or 3 seeds, you capture them.</li>
+      <li>The game lasts 5 rounds.</li>
+      <li>The player with the most captured seeds wins.</li>
     </ul>
   </div>
 </div>
@@ -156,140 +160,133 @@ button {
 <script>
 let pits = Array(12).fill(4);
 let playerScore = 0;
-let yonasScore = 0;
+let aiScore = 0;
 let currentTurn = "";
 let playerName = "";
 let gameOver = false;
 
-let maxRounds = 9;
+let maxRounds = 5;
 let roundCount = 1;
 
 const board = document.getElementById("board");
 const status = document.getElementById("status");
 const result = document.getElementById("result");
-const roundCounter = document.getElementById("roundCounter");
-const scoreBoard = document.getElementById("scoreBoard");
+const rounds = document.getElementById("rounds");
+const score = document.getElementById("score");
 
 function startGame() {
-  const name = document.getElementById("nameInput").value.trim();
-  if (!name) return alert("Enter your name");
+  playerName = nameInput.value.trim();
+  if (!playerName) return alert("Enter your name");
 
-  playerName = name;
-  document.getElementById("playerName").innerText = playerName + " vs Yonas";
-  document.getElementById("playerName").style.display = "block";
-  document.getElementById("playerSetup").style.display = "none";
+  playerSetup.style.display = "none";
+  playerNameEl.innerText = playerName + " vs AI";
+  playerNameEl.style.display = "block";
 
-  currentTurn = "player";
-  updateStatus();
+  currentTurn = Math.random() < 0.5 ? "player" : "ai";
+  updateUI();
   render();
+
+  if (currentTurn === "ai") setTimeout(aiMove, 300);
 }
 
-function updateStatus() {
-  status.textContent = currentTurn === "player" ? "Your turn" : "Yonas is thinking...";
-  roundCounter.textContent = `Round ${roundCount} / ${maxRounds}`;
-  scoreBoard.textContent = `${playerName}: ${playerScore} | Yonas: ${yonasScore}`;
+const playerNameEl = document.getElementById("playerName");
+const playerSetup = document.getElementById("playerSetup");
+
+function updateUI() {
+  status.textContent = currentTurn === "player" ? "Your turn" : "AI thinking...";
+  rounds.textContent = `Round ${roundCount} / ${maxRounds}`;
+  score.textContent = `${playerName}: ${playerScore} | AI: ${aiScore}`;
 }
 
 function render() {
   board.innerHTML = "";
-  for (let i = 5; i >= 0; i--) board.appendChild(createPit(i, true));
-  for (let i = 6; i < 12; i++) board.appendChild(createPit(i, false));
-}
 
-function createPit(i, isAI) {
-  const pit = document.createElement("div");
-  pit.className = "pit";
+  for (let i = 0; i < 12; i++) {
+    const pit = document.createElement("div");
+    pit.className = "pit";
+    pit.innerHTML = "";
 
-  for (let s = 0; s < pits[i]; s++) {
-    const stone = document.createElement("div");
-    stone.className = "stone";
-    pit.appendChild(stone);
-  }
-
-  if (
-    gameOver ||
-    (currentTurn === "player" && isAI) ||
-    (currentTurn === "yonas" && !isAI) ||
-    pits[i] === 0
-  ) {
-    pit.classList.add("disabled");
-  } else {
-    pit.onclick = () => currentTurn === "player" && animatedMove(i, "player");
-  }
-  return pit;
-}
-
-/* 🎞 Animated distribution */
-function animatedMove(startIndex, scorer) {
-  let stones = pits[startIndex];
-  pits[startIndex] = 0;
-  let i = startIndex;
-
-  function dropStone() {
-    if (stones === 0) {
-      checkCapture(i, scorer);
-      endTurn();
-      return;
+    for (let s = 0; s < pits[i]; s++) {
+      const seed = document.createElement("div");
+      seed.className = "seed";
+      pit.appendChild(seed);
     }
+
+    const isPlayerPit = i >= 6;
+
+    if (
+      gameOver ||
+      pits[i] === 0 ||
+      (currentTurn === "player" && !isPlayerPit) ||
+      (currentTurn === "ai" && isPlayerPit)
+    ) {
+      pit.classList.add("disabled");
+    } else {
+      pit.onclick = () => playerMove(i);
+    }
+
+    board.appendChild(pit);
+  }
+}
+
+function distribute(index, scorer) {
+  let stones = pits[index];
+  pits[index] = 0;
+
+  let i = index;
+  while (stones--) {
     i = (i + 1) % 12;
     pits[i]++;
-    stones--;
-    render();
-    setTimeout(dropStone, 200);
   }
-  dropStone();
-}
 
-function checkCapture(i, scorer) {
-  const isOpponent =
+  const opponentSide =
     (scorer === "player" && i < 6) ||
-    (scorer === "yonas" && i >= 6);
+    (scorer === "ai" && i >= 6);
 
-  if (isOpponent && (pits[i] === 2 || pits[i] === 3)) {
-    scorer === "player"
-      ? (playerScore += pits[i])
-      : (yonasScore += pits[i]);
+  if (opponentSide && (pits[i] === 2 || pits[i] === 3)) {
+    scorer === "player" ? playerScore += pits[i] : aiScore += pits[i];
     pits[i] = 0;
   }
 }
 
-function yonasMove() {
-  let options = [];
-  for (let i = 0; i < 6; i++) if (pits[i] > 0) options.push(i);
+function playerMove(i) {
+  distribute(i, "player");
+  endTurn();
+}
+
+function aiMove() {
+  const options = pits.map((v, i) => v > 0 && i < 6 ? i : null).filter(v => v !== null);
   if (!options.length) return endGame();
 
-  animatedMove(options[Math.floor(Math.random() * options.length)], "yonas");
+  const choice = options[Math.floor(Math.random() * options.length)];
+  distribute(choice, "ai");
+  endTurn();
 }
 
 function endTurn() {
-  if (currentTurn === "yonas") {
+  if (currentTurn === "ai") {
     roundCount++;
     if (roundCount > maxRounds) return endGame();
   }
 
-  currentTurn = currentTurn === "player" ? "yonas" : "player";
-  updateStatus();
-  if (currentTurn === "yonas") setTimeout(yonasMove, 600);
+  currentTurn = currentTurn === "player" ? "ai" : "player";
+  updateUI();
+  render();
+
+  if (currentTurn === "ai") setTimeout(aiMove, 300);
 }
 
 function endGame() {
   gameOver = true;
+
   let text =
-    playerScore > yonasScore ? `${playerName} Wins!` :
-    yonasScore > playerScore ? `Yonas Wins!` :
+    playerScore > aiScore ? playerName + " Wins!" :
+    aiScore > playerScore ? "AI Wins!" :
     "It's a Draw!";
 
-  result.innerHTML = `
-    ${text}<br>
-    <small>Final score: ${playerScore} – ${yonasScore}</small><br><br>
-    <button onclick="shareResult()">Share result on Farcaster</button>
-  `;
-}
-
-function shareResult() {
-  const text = `I just played Mancala 🪨\nScore: ${playerScore}–${yonasScore}\nCan you beat me?`;
-  const url = "https://warpcast.com/~/compose?text=" + encodeURIComponent(text);
-  window.open(url, "_blank");
+  result.innerHTML = `${text}<br>Final score: ${playerScore} – ${aiScore}`;
+  restartBtn.style.display = "inline-block";
+  shareBox.style.display = "block";
 }
 
 function restartGame() {
@@ -297,8 +294,14 @@ function restartGame() {
 }
 
 function toggleRules() {
-  const box = document.getElementById("rulesBox");
-  box.style.display = box.style.display === "none" ? "block" : "none";
+  rulesBox.style.display = rulesBox.style.display === "none" ? "block" : "none";
+}
+
+function shareResult() {
+  const text = encodeURIComponent(
+    `I played Mancala and scored ${playerScore}-${aiScore}! 🪨🌍`
+  );
+  window.open(`https://warpcast.com/~/compose?text=${text}&embeds[]=https://farcaster.xyz/mancala`);
 }
 </script>
 
