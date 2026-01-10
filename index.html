@@ -29,6 +29,17 @@ body {
   position: relative;
 }
 
+#scoreBoard {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+#roundInfo {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
 #board {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -56,7 +67,6 @@ body {
   right: 6px;
   font-size: 14px;
   font-weight: bold;
-  color: #fff;
 }
 
 .seed {
@@ -75,13 +85,19 @@ body {
 .seed:nth-child(6) { top: 26px; right: 10px; }
 
 button {
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 8px;
   border: none;
   background: #c48a55;
   font-weight: bold;
   cursor: pointer;
   margin-top: 6px;
+}
+
+#result {
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 10px;
 }
 
 .confetti {
@@ -101,178 +117,4 @@ button {
 
 #rulesBox {
   display: none;
-  font-size: 14px;
-  text-align: left;
-  background: rgba(0,0,0,0.5);
-  padding: 10px;
-  border-radius: 10px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="game" id="gameBox">
-  <h2>Mancala</h2>
-
-  <div id="playerSetup">
-    <input id="nameInput" placeholder="Your name">
-    <br>
-    <button onclick="startGame()">Start</button>
-  </div>
-
-  <div id="info"></div>
-  <div id="board"></div>
-  <div id="result"></div>
-
-  <button onclick="toggleRules()">How to play</button>
-  <div id="rulesBox">
-    <ul>
-      <li>Each pit starts with 4 seeds.</li>
-      <li>Choose a pit from your row.</li>
-      <li>Seeds move clockwise.</li>
-      <li>Landing on opponent side with 2 or 3 seeds captures them.</li>
-      <li>5 rounds total.</li>
-      <li>Most captured seeds wins.</li>
-    </ul>
-  </div>
-</div>
-
-<script>
-let pits = Array(12).fill(4);
-let playerScore = 0;
-let aiScore = 0;
-let round = 1;
-let maxRounds = 5;
-let turn = "player";
-let playerName = "";
-let gameOver = false;
-
-const board = document.getElementById("board");
-const info = document.getElementById("info");
-const result = document.getElementById("result");
-const gameBox = document.getElementById("gameBox");
-
-function startGame() {
-  playerName = nameInput.value || "Player";
-  playerSetup.style.display = "none";
-  update();
-  render();
-}
-
-function update() {
-  info.innerText =
-    `Round ${round}/${maxRounds} · ${playerName}: ${playerScore} | AI: ${aiScore}`;
-}
-
-function render() {
-  board.innerHTML = "";
-  pits.forEach((count, i) => {
-    const pit = document.createElement("div");
-    pit.className = "pit";
-
-    if (
-      gameOver ||
-      (turn === "player" && i < 6) ||
-      (turn === "ai" && i >= 6) ||
-      count === 0
-    ) {
-      pit.classList.add("disabled");
-    } else {
-      pit.onclick = () => move(i);
-    }
-
-    for (let s = 0; s < Math.min(count, 6); s++) {
-      pit.appendChild(document.createElement("div")).className = "seed";
-    }
-
-    const c = document.createElement("div");
-    c.className = "count";
-    c.innerText = count;
-    pit.appendChild(c);
-
-    board.appendChild(pit);
-  });
-}
-
-function move(i) {
-  let stones = pits[i];
-  pits[i] = 0;
-  let pos = i;
-
-  while (stones--) {
-    pos = (pos + 1) % 12;
-    pits[pos]++;
-  }
-
-  const capture =
-    (turn === "player" && pos < 6) ||
-    (turn === "ai" && pos >= 6);
-
-  if (capture && (pits[pos] === 2 || pits[pos] === 3)) {
-    turn === "player"
-      ? playerScore += pits[pos]
-      : aiScore += pits[pos];
-    pits[pos] = 0;
-  }
-
-  if (turn === "player") {
-    turn = "ai";
-    setTimeout(aiMove, 300);
-  } else {
-    round++;
-    if (round > maxRounds) return endGame();
-    turn = "player";
-    update();
-    render();
-  }
-
-  update();
-  render();
-}
-
-function aiMove() {
-  const moves = pits.map((v,i)=>v>0 && i<6 ? i : null).filter(v=>v!==null);
-  if (!moves.length) return endGame();
-  move(moves[Math.floor(Math.random()*moves.length)]);
-}
-
-function endGame() {
-  gameOver = true;
-
-  // Sudden death: add remaining seeds
-  pits.forEach((v, i) => {
-    if (i < 6) aiScore += v;
-    else playerScore += v;
-  });
-
-  let text =
-    playerScore > aiScore ? "You win!" : "AI wins!";
-
-  result.innerText =
-    `${text} Final score ${playerScore} – ${aiScore}`;
-
-  launchConfetti();
-}
-
-function launchConfetti() {
-  const colors = ["#078930", "#FCDD09", "#DA121A"];
-  for (let i = 0; i < 60; i++) {
-    const c = document.createElement("div");
-    c.className = "confetti";
-    c.style.left = Math.random() * 100 + "%";
-    c.style.backgroundColor =
-      colors[Math.floor(Math.random() * colors.length)];
-    gameBox.appendChild(c);
-    setTimeout(() => c.remove(), 3000);
-  }
-}
-
-function toggleRules() {
-  rulesBox.style.display =
-    rulesBox.style.display === "none" ? "block" : "none";
-}
-</script>
-
-</body>
-</html>
+  font-size
