@@ -259,4 +259,41 @@ function aiMove() {
 function endGame() {
   gameOver = true;
 
-  pits
+  pits.forEach((v,i)=> i < 6 ? aiScore += v : playerScore += v);
+  updateUI();
+
+  if (playerScore === aiScore) {
+    playerScore++;
+  }
+
+  result.innerText =
+    playerScore > aiScore ? "🎉 You Win!" : "🤖 AI Wins!";
+
+  endButtons.style.display = "block";
+  launchConfetti();
+}
+
+function restart() {
+  location.reload();
+}
+
+function share() {
+  const text = `I played Mancala 🟤\nScore: ${playerScore}-${aiScore}\nhttps://farcaster.xyz/mancala`;
+  window.open("https://warpcast.com/~/compose?text=" + encodeURIComponent(text), "_blank");
+}
+
+function launchConfetti() {
+  const colors = ["#078930","#FCDD09","#DA121A"];
+  for (let i=0;i<60;i++) {
+    const c = document.createElement("div");
+    c.className="confetti";
+    c.style.left=Math.random()*100+"%";
+    c.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)];
+    gameBox.appendChild(c);
+    setTimeout(()=>c.remove(),3000);
+  }
+}
+</script>
+
+</body>
+</html>
