@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mancala · Fast Ethiopian Game</title>
+<title>Mancala · Daily Blitz</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
 
 <style>
 * { box-sizing: border-box; font-family: Georgia, serif; }
@@ -19,30 +21,35 @@ body {
 }
 
 .game {
-  background: rgba(0,0,0,0.7);
-  padding: 20px;
+  background: rgba(0,0,0,0.75);
+  padding: 18px;
   border-radius: 18px;
   width: 420px;
   text-align: center;
   position: relative;
 }
 
+#topInfo {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
 #scoreBoard {
   font-size: 18px;
   font-weight: bold;
-  margin-bottom: 4px;
+  margin-top: 4px;
 }
 
-#roundInfo {
-  font-size: 14px;
-  opacity: 0.9;
+#timer {
+  font-size: 16px;
+  margin-top: 4px;
 }
 
 #board {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 10px;
-  margin: 16px 0;
+  margin: 14px 0;
 }
 
 .pit {
@@ -114,68 +121,79 @@ button {
 <body>
 
 <div class="game" id="gameBox">
-  <h2>Mancala</h2>
+  <h2>Mancala · Daily Blitz</h2>
 
   <div id="playerSetup">
     <input id="nameInput" placeholder="Your name">
     <br>
-    <button onclick="startGame()">Start Game</button>
+    <button onclick="startGame()">Start</button>
   </div>
 
+  <div id="topInfo"></div>
   <div id="scoreBoard"></div>
-  <div id="roundInfo"></div>
+  <div id="timer"></div>
 
   <div id="board"></div>
 
   <div id="result"></div>
 
   <div id="endActions" style="display:none;">
-    <button onclick="shareFarcaster()">📣 Share on Farcaster</button>
+    <button onclick="shareFarcaster()">📣 Share</button>
     <button onclick="restartGame()">🔁 Play again</button>
   </div>
 </div>
 
 <script>
-let pits, playerScore, aiScore, round, turn, gameOver, playerName;
-const maxRounds = 5;
+/* 🔐 DAILY SEED */
+const today = new Date().toISOString().slice(0,10);
+Math.seedrandom(today);
+
+let pits, playerScore, aiScore, turn, gameOver;
+let timeLeft = 60;
+let timerInterval;
+
+let streak = parseInt(localStorage.getItem("streak") || "0");
+let playerMemory = JSON.parse(localStorage.getItem("playerMemory") || "{}");
 
 const board = document.getElementById("board");
 const scoreBoard = document.getElementById("scoreBoard");
-const roundInfo = document.getElementById("roundInfo");
+const topInfo = document.getElementById("topInfo");
+const timerEl = document.getElementById("timer");
 const result = document.getElementById("result");
 const gameBox = document.getElementById("gameBox");
 const endActions = document.getElementById("endActions");
 
 function startGame() {
-  playerName = nameInput.value || "Player";
   playerSetup.style.display = "none";
-  resetGame();
-}
-
-function resetGame() {
   pits = Array(12).fill(4);
   playerScore = 0;
   aiScore = 0;
-  round = 1;
   turn = "player";
   gameOver = false;
-  result.innerText = "";
-  endActions.style.display = "none";
+  timeLeft = 60;
+
+  topInfo.innerText = `Daily Seed: ${today} · 🔥 Streak: ${streak}`;
   updateUI();
   render();
+  startTimer();
+}
+
+function startTimer() {
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    timerEl.innerText = `⏱️ ${timeLeft}s`;
+    if (timeLeft <= 0) endGame();
+  }, 1000);
 }
 
 function updateUI() {
-  scoreBoard.innerText = `${playerName}: ${playerScore}  |  AI: ${aiScore}`;
-  roundInfo.innerText = `Round ${round} / ${maxRounds}`;
+  scoreBoard.innerText = `You: ${playerScore} | AI: ${aiScore}`;
 }
 
 function render() {
   board.innerHTML = "";
 
-  // TOP ROW (AI) → indices 11 → 6
   for (let i = 11; i >= 6; i--) board.appendChild(createPit(i));
-  // BOTTOM ROW (PLAYER) → indices 0 → 5
   for (let i = 0; i < 6; i++) board.appendChild(createPit(i));
 }
 
@@ -183,53 +201,13 @@ function createPit(i) {
   const pit = document.createElement("div");
   pit.className = "pit";
 
-  const isPlayerPit = i < 6;
+  const isPlayer = i < 6;
 
-  if (
-    gameOver ||
-    pits[i] === 0 ||
-    (turn === "player" && !isPlayerPit) ||
-    (turn === "ai" && isPlayerPit)
-  ) {
+  if (gameOver || pits[i] === 0 || (turn === "player" && !isPlayer) || (turn === "ai" && isPlayer)) {
     pit.classList.add("disabled");
   } else {
     pit.onclick = () => move(i);
   }
 
-  for (let s = 0; s < Math.min(pits[i], 6); s++) {
-    pit.appendChild(document.createElement("div")).className = "seed";
-  }
-
-  const c = document.createElement("div");
-  c.className = "count";
-  c.innerText = pits[i];
-  pit.appendChild(c);
-
-  return pit;
-}
-
-function move(i) {
-  let stones = pits[i];
-  pits[i] = 0;
-  let pos = i;
-
-  while (stones--) {
-    pos = (pos + 1) % 12;
-    pits[pos]++;
-  }
-
-  const capture =
-    (turn === "player" && pos >= 6) ||
-    (turn === "ai" && pos < 6);
-
-  if (capture && (pits[pos] === 2 || pits[pos] === 3)) {
-    turn === "player" ? playerScore += pits[pos] : aiScore += pits[pos];
-    pits[pos] = 0;
-  }
-
-  if (turn === "ai") {
-    round++;
-    if (round > maxRounds) return endGame();
-    turn = "player";
-  } else {
-    turn
+  for (let s = 0; s < Math.min(pits[i],6); s++) {
+    pit.appendChild(document.createElement("div")).classNa
