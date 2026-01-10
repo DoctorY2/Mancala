@@ -26,6 +26,7 @@ body {
   width: 420px;
   text-align: center;
   box-shadow: 0 0 40px rgba(0,0,0,0.7);
+  position: relative;
 }
 
 #board {
@@ -83,6 +84,21 @@ button {
   margin-top: 6px;
 }
 
+.confetti {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  top: -10px;
+  animation: fall 3s linear forwards;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(600px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
 #rulesBox {
   display: none;
   font-size: 14px;
@@ -96,7 +112,7 @@ button {
 
 <body>
 
-<div class="game">
+<div class="game" id="gameBox">
   <h2>Mancala</h2>
 
   <div id="playerSetup">
@@ -114,9 +130,9 @@ button {
     <ul>
       <li>Each pit starts with 4 seeds.</li>
       <li>Choose a pit from your row.</li>
-      <li>Seeds move clockwise, one by one.</li>
-      <li>If the last seed lands on opponent side with 2 or 3 seeds, you capture them.</li>
-      <li>The game lasts 5 rounds.</li>
+      <li>Seeds move clockwise.</li>
+      <li>Landing on opponent side with 2 or 3 seeds captures them.</li>
+      <li>5 rounds total.</li>
       <li>Most captured seeds wins.</li>
     </ul>
   </div>
@@ -130,10 +146,12 @@ let round = 1;
 let maxRounds = 5;
 let turn = "player";
 let playerName = "";
+let gameOver = false;
 
 const board = document.getElementById("board");
 const info = document.getElementById("info");
 const result = document.getElementById("result");
+const gameBox = document.getElementById("gameBox");
 
 function startGame() {
   playerName = nameInput.value || "Player";
@@ -143,7 +161,8 @@ function startGame() {
 }
 
 function update() {
-  info.innerText = `Round ${round}/5 · ${playerName}: ${playerScore} | AI: ${aiScore}`;
+  info.innerText =
+    `Round ${round}/${maxRounds} · ${playerName}: ${playerScore} | AI: ${aiScore}`;
 }
 
 function render() {
@@ -152,7 +171,12 @@ function render() {
     const pit = document.createElement("div");
     pit.className = "pit";
 
-    if ((turn === "player" && i < 6) || (turn === "ai" && i >= 6) || count === 0) {
+    if (
+      gameOver ||
+      (turn === "player" && i < 6) ||
+      (turn === "ai" && i >= 6) ||
+      count === 0
+    ) {
       pit.classList.add("disabled");
     } else {
       pit.onclick = () => move(i);
@@ -186,33 +210,67 @@ function move(i) {
     (turn === "ai" && pos >= 6);
 
   if (capture && (pits[pos] === 2 || pits[pos] === 3)) {
-    turn === "player" ? playerScore += pits[pos] : aiScore += pits[pos];
+    turn === "player"
+      ? playerScore += pits[pos]
+      : aiScore += pits[pos];
     pits[pos] = 0;
   }
 
-  if (turn === "ai") round++;
-  if (round > maxRounds) return endGame();
+  if (turn === "player") {
+    turn = "ai";
+    setTimeout(aiMove, 300);
+  } else {
+    round++;
+    if (round > maxRounds) return endGame();
+    turn = "player";
+    update();
+    render();
+  }
 
-  turn = turn === "player" ? "ai" : "player";
   update();
   render();
-
-  if (turn === "ai") setTimeout(aiMove, 300);
 }
 
 function aiMove() {
   const moves = pits.map((v,i)=>v>0 && i<6 ? i : null).filter(v=>v!==null);
+  if (!moves.length) return endGame();
   move(moves[Math.floor(Math.random()*moves.length)]);
 }
 
 function endGame() {
+  gameOver = true;
+
+  // Sudden death: add remaining seeds
+  pits.forEach((v, i) => {
+    if (i < 6) aiScore += v;
+    else playerScore += v;
+  });
+
+  let text =
+    playerScore > aiScore ? "You win!" : "AI wins!";
+
   result.innerText =
-    playerScore > aiScore ? "You win!" :
-    aiScore > playerScore ? "AI wins!" : "Draw!";
+    `${text} Final score ${playerScore} – ${aiScore}`;
+
+  launchConfetti();
+}
+
+function launchConfetti() {
+  const colors = ["#078930", "#FCDD09", "#DA121A"];
+  for (let i = 0; i < 60; i++) {
+    const c = document.createElement("div");
+    c.className = "confetti";
+    c.style.left = Math.random() * 100 + "%";
+    c.style.backgroundColor =
+      colors[Math.floor(Math.random() * colors.length)];
+    gameBox.appendChild(c);
+    setTimeout(() => c.remove(), 3000);
+  }
 }
 
 function toggleRules() {
-  rulesBox.style.display = rulesBox.style.display === "none" ? "block" : "none";
+  rulesBox.style.display =
+    rulesBox.style.display === "none" ? "block" : "none";
 }
 </script>
 
